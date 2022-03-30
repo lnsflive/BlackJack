@@ -13,9 +13,9 @@ Visit official game at: [Black Jack Game](https://jaimegonzalezjr.com/games/blac
 * Vuetify (Styling Framework)
 * Strapi Headless CMS (Back-End)
 
-![Screenshot](https://raw.githubusercontent.com/lnsflive/BlackJack/main/img/ss1.png)
-![Screenshot](https://raw.githubusercontent.com/lnsflive/BlackJack/main/img/ss2.png)
-![Screenshot](https://raw.githubusercontent.com/lnsflive/BlackJack/main/img/ss3.png)
+![Screenshot](https://github.com/lnsflive/BlackJack/blob/master/static/img/ss1.png)
+![Screenshot](https://github.com/lnsflive/BlackJack/blob/master/static/img/ss2.png)
+![Screenshot](https://github.com/lnsflive/BlackJack/blob/master/static/img/ss3.png)
 
 
 
