@@ -1,12 +1,10 @@
 # BLACK JACK
 
-
 ### `Black Jack Game - With working leaderboard`
 
 Complete matching game done with VueJS
 
 Visit official game at: [Black Jack Game](https://jaimegonzalezjr.com/games/blackjack/).
-
 
 ## Built With
 * VueJs (Front-End)
@@ -16,8 +14,6 @@ Visit official game at: [Black Jack Game](https://jaimegonzalezjr.com/games/blac
 ![Screenshot](https://github.com/lnsflive/BlackJack/blob/master/static/img/ss1.png)
 ![Screenshot](https://github.com/lnsflive/BlackJack/blob/master/static/img/ss2.png)
 ![Screenshot](https://github.com/lnsflive/BlackJack/blob/master/static/img/ss3.png)
-
-
 
 ## Build Setup
 
