@@ -7,10 +7,10 @@ export default {
   // Target: https://go.nuxtjs.dev/config-target
   target: 'static',
   // router: {
-  //     base: '/games/blackjack/'
+  //     base: process.env.APP_BASE_PATH || '/games/blackjack/'
   //   },
   router: {
-      base: '/BlackJack/'
+      base: process.env.APP_BASE_PATH || '/games/blackjack/'
     },
 
   // Global page headers: https://go.nuxtjs.dev/config-head
@@ -99,17 +99,18 @@ export default {
     '@nuxtjs/axios'
   ],
   axios: {
-    baseURL: 'https://strapi.jaimegonzalezjr.com', // Used as fallback if no runtime config is provided
+    credentials: true,
+    baseURL: process.env.API_BASE_URL || 'https://api.jaimegonzalezjr.com', // Used as fallback if no runtime config is provided
   },
   publicRuntimeConfig: {
     axios: {
-      browserBaseURL: process.env.BROWSER_BASE_URL
+      browserBaseURL: process.env.API_BASE_URL || 'https://api.jaimegonzalezjr.com'
     }
   },
 
   privateRuntimeConfig: {
     axios: {
-      baseURL: process.env.BASE_URL
+      baseURL: process.env.API_BASE_URL || 'https://api.jaimegonzalezjr.com'
     }
   },
   // Vuetify module configuration: https://go.nuxtjs.dev/config-vuetify
