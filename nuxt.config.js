@@ -6,6 +6,7 @@ export default {
 
   // Target: https://go.nuxtjs.dev/config-target
   target: 'static',
+  generate: { dir: process.env.BUILD_OUTPUT || 'dist' },
   // router: {
   //     base: process.env.APP_BASE_PATH || '/'
   //   },
