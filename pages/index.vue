@@ -4,7 +4,7 @@
   <v-card v-if="!user || loading" class="pa-6">
     <v-card-title>Blackjack</v-card-title>
     <p>{{ loading ? 'Checking your account…' : 'Sign in with Google to recover your player on any device.' }}</p>
-    <v-btn v-if="!loading" @click="login" color="primary">Continue with Google</v-btn>
+    <AccountForm v-if="!loading" @signed-in="loadAccount" />
     <v-btn v-if="!loading" @click="loadAccount">Retry</v-btn>
   </v-card>
   <template v-if="user && !loading">
@@ -211,6 +211,8 @@
 </template>
 
 <script>
+import { startGoogleLogin, getAccounts } from '~/utils/google-auth'
+
 var shuffleSound = new Audio('./sounds/shuffle.mp3')
 var cardSounds = new Audio('./sounds/card.mp3')
 var loseSound = new Audio('./sounds/lose.mp3')
@@ -262,6 +264,7 @@ export default {
     endSplit: false,
     hasDoubled: 0,
     userID: null,
+    accounts: null,
     user: null,
     loading: true,
     busy: false,
@@ -641,17 +644,20 @@ export default {
         }
     },
     authConfig(){
-      const token = localStorage.getItem('strapi_jwt')
+      const token = localStorage.getItem(this.accounts ? this.accounts.storageKey() : 'strapi_jwt')
       if (!token) throw Object.assign(new Error('Sign in required'), {response:{status:401}})
       return {headers:{Authorization:'Bearer ' + token}, withCredentials:false}
     },
-    login(){
-      window.location.assign('https://jaimegonzalezjr.com/Projects/TimeForge/auth/google?app=blackjack')
+    async login(){
+      this.authError = ''
+      try { window.location.assign(await startGoogleLogin()) }
+      catch (_) { this.authError = 'Unable to start Google sign-in. Please try again.' }
     },
     async loadAccount(){
       this.loading = true
       this.authError = ''
       try {
+        this.accounts = await getAccounts()
         this.user = await this.$axios.$get('/users/me', this.authConfig())
         const profiles = await this.$axios.$get('/blackjacks?portfolioUserId=' + encodeURIComponent(this.user.id), this.authConfig())
         if (profiles.length) this.applyProfile(profiles[0])
@@ -694,7 +700,7 @@ export default {
       this.busy = true
       try {
         await this.saveQueue
-        localStorage.removeItem('strapi_jwt')
+        localStorage.removeItem(this.accounts ? this.accounts.storageKey() : 'strapi_jwt')
         try { await this.$axios.$post('/auth/logout', {}, {withCredentials:true}) } catch (_) {}
         window.location.reload()
       } catch(error) { this.handleError(error) }
