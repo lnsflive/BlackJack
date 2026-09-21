@@ -90,3 +90,8 @@ sw.*
 *.swp
 
 .deploy-backups/
+
+# Private local environment overrides
+.env
+.env.*
+!.env.example

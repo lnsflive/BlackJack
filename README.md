@@ -36,8 +36,13 @@ $ yarn generate
 
 The browser uses native Strapi REST with a shared strapi_jwt local-storage bearer token. Google returns to this app's own `/games/blackjack/auth/google` callback. The reusable account client and form are served from `https://api.jaimegonzalezjr.com/auth/client.v1.js` and maintained in the Strapi repository. Native game collections enforce account ownership on the server. Existing anonymous names require administrator migration. API_BASE_URL defaults to https://api.jaimegonzalezjr.com.
 
-Set `API_BASE_URL` and `APP_BASE_PATH` in the build environment; `DEPLOY_DIR` controls the Web Station output directory. Defaults preserve `/games/blackjack/`. Run `npm run test:auth`, then `npm run generate`, `npm run deploy:preview`, and `npm run deploy`. Deployment backs up existing files into ignored `.deploy-backups/` and retains old hashed assets. It does not delete old URLs or update Google callback configuration.
 
 The legacy Nuxt 2 build pins matching Vue 2.6.14 renderer/compiler versions and enables the OpenSSL compatibility provider for its Webpack 4 build on Node 22. Framework modernization remains separate work.
 
 Account controls mount inside this app's own layout. Strapi Content Manager → OAuth Applications configures callback/return URLs, Google/password options, registration, and shared/separate sessions. Current configuration is Google with shared login. No provider secrets belong in frontend environment files.
+
+## Local configuration and publishing
+
+Normal builds use `/` as their base path. Set `APP_BASE_PATH` in the build environment to host under a subdirectory; unset or empty leaves the default. Set `API_BASE_URL` for the compatible shared-account backend. Environment values are embedded during the build. Private `.env` overrides are ignored by Git; only `.env.example` is tracked.
+
+Build the application using its normal npm build/generate command, then publish the completed static output with your own hosting tools. Personal deployment scripts, NAS paths, and publishing credentials belong outside this public repository. Configure the backend OAuth application registry with this deployment's own callback and return URLs. Browser route guards do not replace backend ownership checks.

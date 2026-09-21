@@ -7,10 +7,10 @@ export default {
   // Target: https://go.nuxtjs.dev/config-target
   target: 'static',
   // router: {
-  //     base: process.env.APP_BASE_PATH || '/games/blackjack/'
+  //     base: process.env.APP_BASE_PATH || '/'
   //   },
   router: {
-      base: process.env.APP_BASE_PATH || '/games/blackjack/'
+      base: process.env.APP_BASE_PATH || '/'
     },
 
   // Global page headers: https://go.nuxtjs.dev/config-head

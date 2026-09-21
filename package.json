@@ -7,9 +7,7 @@
     "build": "NODE_OPTIONS=--openssl-legacy-provider nuxt build",
     "start": "nuxt start",
     "generate": "NODE_OPTIONS=--openssl-legacy-provider nuxt generate",
-    "deploy": "npm run generate && node scripts/deploy.cjs",
-    "test:auth": "node tests/auth.cjs",
-    "deploy:preview": "node scripts/deploy.cjs --preview"
+    "test:auth": "node tests/auth.cjs"
   },
   "dependencies": {
     "@nuxtjs/axios": "^5.13.6",
