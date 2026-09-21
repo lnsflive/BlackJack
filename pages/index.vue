@@ -44,7 +44,7 @@
   >
    <v-form class="pa-6 black" @submit.prevent="submitPlayer()">
      <v-card-title>Create New Player</v-card-title>
-     <p>Your player will be linked to your Google account. Existing names require an administrator to migrate them.</p>
+     <p>Your player will be linked to your account. Existing names require an administrator to migrate them.</p>
      <p v-if="authError" role="alert">{{authError}}</p>
      <v-btn @click="logout" :disabled="busy">Sign out</v-btn>
       <v-text-field class="mb-6" :counter="10" v-model="tempPlayer" label="Enter Name:" />
