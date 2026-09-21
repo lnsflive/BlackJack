@@ -720,7 +720,7 @@ export default {
         this.applyProfile(profile)
       } catch(error) {
         if (error.response && error.response.status === 409) {
-          if (error.response.data.error === 'profile_exists') await this.loadAccount()
+          if ((error.response.data.message || error.response.data.error) === 'profile_exists') await this.loadAccount()
           else this.authError = 'That name is reserved. Choose another name or contact the administrator to migrate your existing player.'
         } else this.handleError(error)
       } finally { this.busy = false }

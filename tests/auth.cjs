@@ -30,6 +30,10 @@ function failure(status,error){return Object.assign(new Error('API failure'),{re
  app=instance();replies=[failure(401)];await app.loadAccount();assert.equal(app.user,null);assert.equal(game==='blackjack'?app.userID:app.playerId,null);
  app=instance();replies=[{id:7},[],[]];await app.loadAccount();assert.equal(app.user.id,7);assert.equal(game==='blackjack'?app.userID:app.playerId,null);
  app=instance();app.user={id:7};app.tempPlayer='Reserved';app.newName='Reserved';app.invalid=false;replies=[failure(409,'name_taken')];await (game==='blackjack'?app.submitPlayer():app.createPlayer());assert.match(app.authError,/reserved/);assert.equal(game==='blackjack'?app.userID:app.playerId,null);
+ // A native Strapi conflict carries its code in message, not error.
+ app=instance();app.user={id:7};app.tempPlayer='Existing';app.newName='Existing';app.invalid=false;let restored=0;app.loadAccount=async()=>{restored++};
+ const conflict=failure(409,'Conflict');conflict.response.data.message='profile_exists';replies=[conflict];
+ await (game==='blackjack'?app.submitPlayer():app.createPlayer());assert.equal(restored,1);assert.equal(app.authError,'');
  app=instance();app.user={id:7};app.userID=11;app.playerId=11;app.profileLoaded=true;app.highScore=900;replies=[{},[]];
  if (game==='blackjack') {options.watch.bankAmount.call(app,800);await app.saveQueue} else await app.postScore();
  const save=requests.find(r=>r.method==='PUT');assert.equal(save.url,game==='blackjack'?'/blackjacks/11':'/memorygames/11');assert.equal(save.body.id,undefined);assert.equal(save.body.user,undefined);
