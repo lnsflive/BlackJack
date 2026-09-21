@@ -1,5 +1,14 @@
 <template>
 <v-container fluid class="ma-0 pa-0 overflow-hidden">
+  <v-alert v-if="authError" type="error" role="alert">{{authError}}</v-alert>
+  <v-card v-if="!user || loading" class="pa-6">
+    <v-card-title>Blackjack</v-card-title>
+    <p>{{ loading ? 'Checking your account…' : 'Sign in with Google to recover your player on any device.' }}</p>
+    <AccountForm v-if="!loading" @signed-in="loadAccount" />
+    <v-btn v-if="!loading" @click="loadAccount">Retry</v-btn>
+  </v-card>
+  <template v-if="user && !loading">
+  <v-btn @click="logout" :disabled="busy">Sign out of shared account</v-btn>
   <AppBar
     :bank="bankAmount"
     :playerName="playerName"
@@ -35,9 +44,12 @@
   >
    <v-form class="pa-6 black" @submit.prevent="submitPlayer()">
      <v-card-title>Create New Player</v-card-title>
+     <p>Your player will be linked to your account. Existing names require an administrator to migrate them.</p>
+     <p v-if="authError" role="alert">{{authError}}</p>
+     <v-btn @click="logout" :disabled="busy">Sign out</v-btn>
       <v-text-field class="mb-6" :counter="10" v-model="tempPlayer" label="Enter Name:" />
       <v-btn @click="clear" class="secondary">Clear</v-btn>
-      <v-btn @click="submitPlayer" :disabled="invalid" class="success">Submit</v-btn>
+      <v-btn @click="submitPlayer" :disabled="invalid || busy" class="success">Submit</v-btn>
    </v-form>
   </v-dialog>
   <v-dialog
@@ -66,6 +78,7 @@
       </div>
     </div>
     <v-col>
+        <v-row><v-btn @click="logout" :disabled="busy" class="grow">Sign out of shared account</v-btn></v-row>
         <v-row><v-btn class="green pa-8 grow" @click="playAgain()">Bet:{{betGame1}}</v-btn></v-row>
         <v-row><v-btn class="error pa-8 grow" @click="clearBet2()">Clear Bet</v-btn></v-row>
         <v-row><v-btn class="secondary pa-8 grow" @click="toggleLeaderboard()"><v-icon>mdi-trophy-award</v-icon>Leaderboard<v-icon>mdi-trophy-award</v-icon></v-btn></v-row>
@@ -193,10 +206,13 @@
         </v-col>
       </v-row>
   </v-container>
+  </template>
 </v-container>
 </template>
 
 <script>
+import { startGoogleLogin, getAccounts } from '~/utils/google-auth'
+
 var shuffleSound = new Audio('./sounds/shuffle.mp3')
 var cardSounds = new Audio('./sounds/card.mp3')
 var loseSound = new Audio('./sounds/lose.mp3')
@@ -248,6 +264,13 @@ export default {
     endSplit: false,
     hasDoubled: 0,
     userID: null,
+    accounts: null,
+    user: null,
+    loading: true,
+    busy: false,
+    authError: '',
+    profileLoaded: false,
+    saveQueue: Promise.resolve(),
     createPlayer: false,
     showLeaderboards: false,
     tempPlayer: '',
@@ -309,6 +332,7 @@ export default {
       this.currentHand()
     },
     drawCard(myArray){
+      if (!this.user || !this.profileLoaded) return
       cardSounds.play()
       const tmpCard = this.cards[0]
       myArray.push(tmpCard)
@@ -463,7 +487,7 @@ export default {
       return totalBet
     },
     playAgain(){
-      if(this.betGame1 > 0){
+      if(this.user && this.profileLoaded && !this.busy && this.betGame1 > 0){
         betSound.play()
         this.betGame2 = 0
         this.originalBet = this.betGame1
@@ -488,6 +512,7 @@ export default {
       }
     },
     checkGame(){
+      if (!this.user || !this.profileLoaded) return
       if(!this.dealerHidden){
         if(this.splitShow){
           if(this.test3 < this.test2 && this.test2 <= 21){
@@ -618,71 +643,88 @@ export default {
           this.game1Bet(amount)
         }
     },
-    async getLeaderboard() {
-      this.leaderboard = await this.$axios.$get('/blackjacks/')
-      this.checkPlayerExists()
-      this.createLeaderboard()
+    authConfig(){
+      const token = localStorage.getItem(this.accounts ? this.accounts.storageKey() : 'strapi_jwt')
+      if (!token) throw Object.assign(new Error('Sign in required'), {response:{status:401}})
+      return {headers:{Authorization:'Bearer ' + token}, withCredentials:false}
     },
-    async updateLeaderboard() {
-      this.leaderboard = []
-      this.leaderboard = await this.$axios.$get('/blackjacks/')
-      this.createLeaderboard()
+    async login(){
+      this.authError = ''
+      try { window.location.assign(await startGoogleLogin()) }
+      catch (_) { this.authError = 'Unable to start Google sign-in. Please try again.' }
     },
-    createLeaderboard(){
-      this.players = []
-      for(let i=0;i<this.leaderboard.length;i++){
-        this.players.push({
-          name: this.leaderboard[i].name,
-          bank: this.leaderboard[i].bank,
-        })
+    async loadAccount(){
+      this.loading = true
+      this.authError = ''
+      try {
+        this.accounts = await getAccounts()
+        this.user = await this.$axios.$get('/users/me', this.authConfig())
+        const profiles = await this.$axios.$get('/blackjacks?portfolioUserId=' + encodeURIComponent(this.user.id), this.authConfig())
+        if (profiles.length) this.applyProfile(profiles[0])
+        else { this.profileLoaded = false; this.userID = null; this.createPlayer = true }
+        await this.updateLeaderboard()
+      } catch (error) {
+        this.handleError(error)
+      } finally {
+        this.loading = false
       }
     },
-    checkPlayerExists(){
-      if(localStorage.userID){
-        this.userID = Number(localStorage.userID)
-        for(let i=0;i<this.leaderboard.length;i++){
-          if(this.leaderboard[i].id == this.userID){
-            this.playerName = this.leaderboard[i].name
-            this.bankAmount = this.leaderboard[i].bank
-          }
-        }
-        //this.bankAmount = Number(localStorage.bank)
-        //this.playerName = localStorage.playerName
-        this.endGame = true
-      }else{
-        //const name = prompt('Enter Name:')
-        this.promptMe()
-      }
-
-      //         this.$axios.post('/blackjacks/',{
-      //     name: name,
-      //     bank: 10000
-      //   })
-      //   .then(response => {
-      //     this.userID = response.data.id
-      //     this.bankAmount = response.data.bank
-      //   })
+    applyProfile(profile){
+      const value = Number(profile.bank)
+      if (!['number', 'string'].includes(typeof profile.bank) || String(profile.bank).trim() === '' || !Number.isFinite(value) || !Number.isSafeInteger(value) || value < 0) throw new Error('Invalid saved profile value')
+      this.profileLoaded = false
+      this.userID = profile.id
+      this.playerName = profile.name
+      this.bankAmount = value
+      this.createPlayer = false
+      this.endGame = true
+      this.$nextTick(() => { this.profileLoaded = true })
     },
-    promptMe(){
-      this.createPlayer = true
-    },
-    clear(){
-      this.tempPlayer = ''
-    },
-    submitPlayer(){
+    handleError(error){
+      if (error.response && error.response.status === 401) {
+        this.user = null
+        this.profileLoaded = false
+        this.userID = null
+        this.playerName = null
+        this.bankAmount = 0
+        this.players = []
+        this.endGame = false
         this.createPlayer = false
-        this.$axios.post('/blackjacks/',{
-          name: this.tempPlayer,
-          bank: 10000
-        })
-        .then(response => {
-          this.userID = response.data.id
-          this.bankAmount = response.data.bank
-          this.playerName = this.tempPlayer
-          this.tempPlayer = ''
-          this.endGame = true
-        })
-      //}
+        clearInterval(this.dealerInterval)
+        this.authError = 'Please sign in with Google to continue.'
+      } else {
+        this.authError = 'Unable to load or save your account. Please retry before continuing.'
+      }
+    },
+    async logout(){
+      this.busy = true
+      try {
+        await this.saveQueue
+        localStorage.removeItem(this.accounts ? this.accounts.storageKey() : 'strapi_jwt')
+        try { await this.$axios.$post('/auth/logout', {}, {withCredentials:true}) } catch (_) {}
+        window.location.reload()
+      } catch(error) { this.handleError(error) }
+      finally { this.busy = false }
+    },
+    async updateLeaderboard(){
+      try {
+        this.players = await this.$axios.$get('/blackjacks?_sort=bank:desc', this.authConfig())
+      } catch(error) { this.handleError(error) }
+    },
+    clear(){ this.tempPlayer = '' },
+    async submitPlayer(){
+      if (this.invalid || this.busy) return
+      this.busy = true
+      this.authError = ''
+      try {
+        const profile = await this.$axios.$post('/blackjacks', {name: this.tempPlayer.trim()}, this.authConfig())
+        this.applyProfile(profile)
+      } catch(error) {
+        if (error.response && error.response.status === 409) {
+          if ((error.response.data.message || error.response.data.error) === 'profile_exists') await this.loadAccount()
+          else this.authError = 'That name is reserved. Choose another name or contact the administrator to migrate your existing player.'
+        } else this.handleError(error)
+      } finally { this.busy = false }
     },
     toggleLeaderboard(){
       this.showLeaderboards = !this.showLeaderboards
@@ -714,28 +756,21 @@ export default {
     }
   },
   created(){
-    this.getLeaderboard()
     this.createDeck()
+    this.loadAccount()
   },
-  mounted(){
-    this.checkPlayerExists()
-  },
+  beforeDestroy(){ clearInterval(this.dealerInterval) },
   watch:{
-    bankAmount(newValue){
-      localStorage.bank = newValue
-      this.$axios.put('/blackjacks/' + this.userID,{
-        name: this.playerName,
-        bank: this.bankAmount
+    bankAmount(bank){
+      if (!this.profileLoaded || !this.user || !this.userID) return
+      // Serialize writes so slower earlier responses cannot overwrite newer balances.
+      this.saveQueue = this.saveQueue.then(async () => {
+        if (!this.user) return
+        try {
+          await this.$axios.$put('/blackjacks/' + this.userID, {bank}, this.authConfig())
+          await this.updateLeaderboard()
+        } catch(error) { this.handleError(error) }
       })
-      .then(()=>{
-        this.updateLeaderboard()
-      })
-    },
-    userID(newValue){
-      localStorage.userID = newValue
-    },
-    playerName(newValue){
-      localStorage.playerName = newValue
     }
   },
   computed:{

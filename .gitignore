@@ -88,3 +88,10 @@ sw.*
 
 # Vim swap files
 *.swp
+
+.deploy-backups/
+
+# Private local environment overrides
+.env
+.env.*
+!.env.example
