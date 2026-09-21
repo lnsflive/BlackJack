@@ -99,7 +99,7 @@ export default {
     '@nuxtjs/axios'
   ],
   axios: {
-    credentials: true,
+    credentials: false,
     baseURL: process.env.API_BASE_URL || 'https://api.jaimegonzalezjr.com', // Used as fallback if no runtime config is provided
   },
   publicRuntimeConfig: {

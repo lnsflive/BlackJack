@@ -4,7 +4,7 @@
   <v-card v-if="!user || loading" class="pa-6">
     <v-card-title>Blackjack</v-card-title>
     <p>{{ loading ? 'Checking your account…' : 'Sign in with Google to recover your player on any device.' }}</p>
-    <v-btn v-if="!loading" :href="loginUrl" color="primary">Continue with Google</v-btn>
+    <v-btn v-if="!loading" @click="login" color="primary">Continue with Google</v-btn>
     <v-btn v-if="!loading" @click="loadAccount">Retry</v-btn>
   </v-card>
   <template v-if="user && !loading">
@@ -640,18 +640,27 @@ export default {
           this.game1Bet(amount)
         }
     },
+    authConfig(){
+      const token = localStorage.getItem('strapi_jwt')
+      if (!token) throw Object.assign(new Error('Sign in required'), {response:{status:401}})
+      return {headers:{Authorization:'Bearer ' + token}, withCredentials:false}
+    },
+    login(){
+      const nonce = Array.from(crypto.getRandomValues(new Uint8Array(32)), n => n.toString(16).padStart(2, '0')).join('')
+      sessionStorage.setItem('strapi_google_state', nonce)
+      sessionStorage.setItem('strapi_google_return', '/games/blackjack/')
+      const callback = new URL('https://jaimegonzalezjr.com/Projects/TimeForge/auth/google')
+      callback.searchParams.set('state', nonce)
+      window.location.assign('https://strapi.jaimegonzalezjr.com/connect/google?callback=' + encodeURIComponent(callback.href))
+    },
     async loadAccount(){
       this.loading = true
       this.authError = ''
       try {
-        const session = await this.$axios.$get('/portfolio/session')
-        this.user = session.user
-        try {
-          this.applyProfile(await this.$axios.$get('/portfolio/games/blackjack/me'))
-        } catch (error) {
-          if (error.response && error.response.status === 404) this.createPlayer = true
-          else throw error
-        }
+        this.user = await this.$axios.$get('/users/me', this.authConfig())
+        const profiles = await this.$axios.$get('/blackjacks?portfolioUserId=' + encodeURIComponent(this.user.id), this.authConfig())
+        if (profiles.length) this.applyProfile(profiles[0])
+        else { this.profileLoaded = false; this.userID = null; this.createPlayer = true }
         await this.updateLeaderboard()
       } catch (error) {
         this.handleError(error)
@@ -690,14 +699,15 @@ export default {
       this.busy = true
       try {
         await this.saveQueue
-        await this.$axios.$post('/portfolio/auth/logout')
+        localStorage.removeItem('strapi_jwt')
+        try { await this.$axios.$post('/auth/logout', {}, {withCredentials:true}) } catch (_) {}
         window.location.reload()
       } catch(error) { this.handleError(error) }
       finally { this.busy = false }
     },
     async updateLeaderboard(){
       try {
-        this.players = await this.$axios.$get('/portfolio/games/blackjack/leaderboard')
+        this.players = await this.$axios.$get('/blackjacks?_sort=bank:desc', this.authConfig())
       } catch(error) { this.handleError(error) }
     },
     clear(){ this.tempPlayer = '' },
@@ -706,7 +716,7 @@ export default {
       this.busy = true
       this.authError = ''
       try {
-        const profile = await this.$axios.$post('/portfolio/games/blackjack/me', {name: this.tempPlayer.trim()})
+        const profile = await this.$axios.$post('/blackjacks', {name: this.tempPlayer.trim()}, this.authConfig())
         this.applyProfile(profile)
       } catch(error) {
         if (error.response && error.response.status === 409) {
@@ -756,14 +766,13 @@ export default {
       this.saveQueue = this.saveQueue.then(async () => {
         if (!this.user) return
         try {
-          await this.$axios.$put('/portfolio/games/blackjack/me', {bank})
+          await this.$axios.$put('/blackjacks/' + this.userID, {bank}, this.authConfig())
           await this.updateLeaderboard()
         } catch(error) { this.handleError(error) }
       })
     }
   },
   computed:{
-    loginUrl(){ return this.$axios.defaults.baseURL.replace(/\/$/, '') + '/portfolio/auth/start?app=blackjack' },
     test() {
         while(this.hand.length){
         this.handTotal = 0
